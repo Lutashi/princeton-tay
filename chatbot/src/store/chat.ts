@@ -31,13 +31,19 @@ type ChatContent = {
 
 type ChatContentEmmiter = "gpt" | "user" | "error";
 
-const savedChats = JSON.parse(store.session("@chat"));
-const getSafeSavedChats = () => {
-    if (Array.isArray(savedChats) && savedChats.length > 0) {
-        return savedChats;
-    };
-
-    return undefined;
+// Safely parse saved chats from session storage
+const getSafeSavedChats = (): Chat[] | undefined => {
+    try {
+        const raw = store.session("@chat");
+        if (!raw) return undefined;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed as Chat[];
+        }
+        return undefined;
+    } catch {
+        return undefined;
+    }
 };
 
 const initialChatState: Chat[] = getSafeSavedChats() || [
@@ -76,22 +82,22 @@ export const useChat = create<UseChatProps>((set, get) => ({
     selectedChat: initialChatState[0],
     setChat: async (payload) => set(({ chat }) => ({ chat: [...chat, payload] })),
     addChat: async (callback) => {
-        const hasNewChat = get().chat.find(({ content }) => (content.length === 0));
-        let id: string
-        if (!hasNewChat) {
-            id = v4()
+        // Reuse an existing empty chat if present; otherwise create a new one
+        const existingEmptyChat = get().chat.find(({ content }) => content.length === 0);
+        let id: string;
+        if (existingEmptyChat) {
+            id = existingEmptyChat.id;
             get().setSelectedChat({ id });
-            
         } else {
-            id = hasNewChat.id;
+            id = v4();
             get().setSelectedChat({ id });
-        };
-        get().setChat({
-            role: "New chat",
-            id: id,
-            content: []
-        });
-        const selectedChat = get().chat.find((query) => (query.id === id));
+            get().setChat({
+                role: "New chat",
+                id,
+                content: []
+            });
+        }
+        const selectedChat = get().chat.find((query) => query.id === id);
         if (callback) callback(id, selectedChat);
     },
     editChat: async (id, payload) => set(({ chat }) => {

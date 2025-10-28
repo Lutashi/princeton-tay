@@ -339,14 +339,14 @@ export const Chat = ({ ...props }: ChatProps) => {
   const isSendDisabled = streamingMessageId !== null || isThinking;
 
   return (
-    <Stack width="full" height="full" backgroundColor="#212529">
+    <Stack width="full" height="full" backgroundColor="#343541">
       <Stack
         className="output-stack"
         maxWidth="768px"
         width="full"
         marginX="auto"
         overflow="auto"
-        backgroundColor="#212529"
+        backgroundColor="#343541"
         onScroll={handleScroll}
         ref={scrollContainerRef}
         css={{
@@ -418,8 +418,8 @@ export const Chat = ({ ...props }: ChatProps) => {
                   key={key}
                   position="relative"
                 >
-                  <Stack
-                    backgroundColor={emitter == "gpt" ? "#1e2022" : "transparent"}
+                    <Stack
+                    backgroundColor={emitter == "gpt" ? "#444654" : "transparent"}
                     position="relative"
                     spacing={0}
                   >
@@ -544,7 +544,7 @@ export const Chat = ({ ...props }: ChatProps) => {
       <Stack
         className="input-stack"
         padding={4}
-        backgroundColor="#151719"
+        backgroundColor="#343541"
         justifyContent="center"
         alignItems="center"
         overflow="hidden"
@@ -575,7 +575,7 @@ export const Chat = ({ ...props }: ChatProps) => {
             }
             {...register("input")}
             onSubmit={handleInputKeyDown}
-            backgroundColor="whiteAlpha.200"
+            backgroundColor="whiteAlpha.100"
           />
           <Text
             className="disclaimer"

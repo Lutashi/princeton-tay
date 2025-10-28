@@ -12,12 +12,12 @@ export default function Home() {
             width="full"
             height="full"
             spacing={0}
-            style={{ paddingTop: 32, backgroundColor: "#222529" }}
+            style={{ paddingTop: 0, backgroundColor: "#343541" }}
         >
-            {/* <Sidebar
-                isResponsive={isResponsive}
-            /> */}
-            <Chat />
+            <Sidebar isResponsive={isResponsive} />
+            <Stack flex={1} height="full">
+                <Chat />
+            </Stack>
         </Stack>
     );
 };
