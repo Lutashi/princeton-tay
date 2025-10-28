@@ -2,7 +2,6 @@ import warning from "assets/warning.svg";
 import { useRef, useEffect, useState, useReducer } from "react";
 import { Feedback, useChat } from "store/chat";
 import { useForm } from "react-hook-form";
-import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { OpenAIApi, Configuration } from "openai";
 import { useMutation } from "react-query";
 import TayAvatar from "assets/tayavatar.png";
@@ -12,7 +11,7 @@ import "styles/markdown.css";
 
 //Components
 import { Input } from "components/Input";
-import { FiSend, FiThumbsUp, FiThumbsDown, FiRefreshCcw, FiChevronDown } from "react-icons/fi";
+import { FiSend, FiThumbsUp, FiThumbsDown, FiRefreshCcw, FiChevronDown, FiSquare } from "react-icons/fi";
 import {
   Avatar,
   Box,
@@ -22,6 +21,7 @@ import {
   Text,
   keyframes,
 } from "@chakra-ui/react";
+import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Instructions } from "../Layout/Instructions";
@@ -76,20 +76,19 @@ export const Chat = ({ ...props }: ChatProps) => {
     useChat();
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
-  const [isThinking, setIsThinking] = useState(false);
+  const [streamingChatIds, setStreamingChatIds] = useState<Set<string>>(new Set());
+  const [thinkingChatIds, setThinkingChatIds] = useState<Set<string>>(new Set());
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isAutoScrollingRef = useRef(false);
   const userHasScrolledRef = useRef(false);
+  const controllersRef = useRef<Map<string, AbortController>>(new Map());
   const selectedId = selectedChat?.id;
   const selectedRole = selectedChat?.role;
 
   const hasSelectedChat = selectedChat && selectedChat?.content.length > 0;
 
   const { register, setValue, handleSubmit } = useForm<ChatSchema>();
-
-  const [parentRef] = useAutoAnimate();
 
   const configuration = new Configuration({
     apiKey: api,
@@ -149,8 +148,14 @@ export const Chat = ({ ...props }: ChatProps) => {
         message: prompt,
       });
 
-      // Show thinking indicator
-      setIsThinking(true);
+      // Show thinking indicator for this chat
+      if (selectedId) {
+        setThinkingChatIds((prev) => {
+          const next = new Set(prev);
+          next.add(selectedId);
+          return next;
+        });
+      }
 
       // Scroll to show the user's message
       setTimeout(() => {
@@ -158,11 +163,23 @@ export const Chat = ({ ...props }: ChatProps) => {
       }, 100);
 
       const controller = new AbortController();
+      // Abort any other in-flight requests across chats (server may limit concurrency per user)
+      controllersRef.current.forEach((c) => c.abort());
+      controllersRef.current.clear();
+      if (selectedId) {
+        controllersRef.current.set(selectedId, controller);
+      }
       const uuid = getUuid();
       const messageIndex = selectedChat ? selectedChat.content.length : 0;
       const newMessageId = `${selectedId}-${messageIndex}`;
       
-      setStreamingMessageId(newMessageId);
+      if (selectedId) {
+        setStreamingChatIds((prev) => {
+          const next = new Set(prev);
+          next.add(selectedId);
+          return next;
+        });
+      }
       setAutoScrollEnabled(true);
       userHasScrolledRef.current = false;
 
@@ -188,7 +205,14 @@ export const Chat = ({ ...props }: ChatProps) => {
           let message = "";
           
           if (reader) {
-            setIsThinking(false); // Hide thinking indicator when streaming starts
+            if (selectedId) {
+              // Hide thinking indicator for this chat when streaming starts
+              setThinkingChatIds((prev) => {
+                const next = new Set(prev);
+                next.delete(selectedId);
+                return next;
+              });
+            }
             addMessage(selectedId, {
               emitter: "gpt",
               message,
@@ -197,7 +221,15 @@ export const Chat = ({ ...props }: ChatProps) => {
               const { done, value } = await reader.read();
               
               if (done) {
-                setStreamingMessageId(null);
+                if (selectedId) {
+                  setStreamingChatIds((prev) => {
+                    const next = new Set(prev);
+                    next.delete(selectedId);
+                    return next;
+                  });
+                  // clear controller for this chat
+                  controllersRef.current.delete(selectedId);
+                }
                 // handle empty/blank responses
                 if (!message.trim()) {
                   editMessage(selectedId, "I apologize, but I'm not sure how to respond to that. Could you please provide more context or rephrase your question?");
@@ -227,20 +259,37 @@ export const Chat = ({ ...props }: ChatProps) => {
         })
         .catch((error) => {
           console.error("Streaming error:", error);
-          setStreamingMessageId(null);
+          if (selectedId) {
+            setStreamingChatIds((prev) => {
+              const next = new Set(prev);
+              next.delete(selectedId);
+              return next;
+            });
+            controllersRef.current.delete(selectedId);
+          }
           setAutoScrollEnabled(false);
-          setIsThinking(false); // hide thinking indicator on error
-          
-          // provide specific error messages
-          let errorMessage = "I apologize, but I cannot assist with that request. Please try asking something else.";
-          if (error.message === 'Server error') {
-            errorMessage = "I apologize, but I cannot process that type of request. Please try asking something else that aligns with appropriate and constructive dialogue.";
+          if (selectedId) {
+            // hide thinking indicator on error for this chat
+            setThinkingChatIds((prev) => {
+              const next = new Set(prev);
+              next.delete(selectedId);
+              return next;
+            });
           }
           
-          addMessage(selectedId, {
-            emitter: "error",
-            message: errorMessage,
-          });
+          // If the user manually stopped the request, don't add an error bubble
+          const isAbortError = (error && (error.name === 'AbortError' || error.message?.includes('aborted')));
+          if (!isAbortError) {
+            // provide specific error messages
+            let errorMessage = "I apologize, but I cannot assist with that request. Please try asking something else.";
+            if (error.message === 'Server error') {
+              errorMessage = "I apologize, but I cannot process that type of request. Please try asking something else that aligns with appropriate and constructive dialogue.";
+            }
+            addMessage(selectedId, {
+              emitter: "error",
+              message: errorMessage,
+            });
+          }
         });
     };
 
@@ -262,10 +311,10 @@ export const Chat = ({ ...props }: ChatProps) => {
     const atBottom = isAtBottom();
     setShowScrollButton(!atBottom);
     
-    if (!atBottom && streamingMessageId !== null) {
+    if (!atBottom && selectedId && streamingChatIds.has(selectedId)) {
       userHasScrolledRef.current = true;
       setAutoScrollEnabled(false);
-    } else if (atBottom && streamingMessageId !== null) {
+    } else if (atBottom && selectedId && streamingChatIds.has(selectedId)) {
       userHasScrolledRef.current = false;
       setAutoScrollEnabled(true);
     }
@@ -324,8 +373,11 @@ export const Chat = ({ ...props }: ChatProps) => {
 
   const handleClearAll = () => {
     clearAll();
-    setIsThinking(false);
-    setStreamingMessageId(null);
+    setThinkingChatIds(new Set());
+    setStreamingChatIds(new Set());
+    // Abort any in-flight requests
+    controllersRef.current.forEach((controller) => controller.abort());
+    controllersRef.current.clear();
   };
   
   useEffect(() => {
@@ -335,8 +387,11 @@ export const Chat = ({ ...props }: ChatProps) => {
     }
   }, []);
 
-  // send button be disablee
-  const isSendDisabled = streamingMessageId !== null || isThinking;
+  // Disable send only if current chat is streaming or thinking
+  const isSendDisabled = !!(
+    (selectedId && streamingChatIds.has(selectedId)) ||
+    (selectedId && thinkingChatIds.has(selectedId))
+  );
 
   return (
     <Stack width="full" height="full" backgroundColor="#343541">
@@ -365,9 +420,10 @@ export const Chat = ({ ...props }: ChatProps) => {
           },
         }}
       >
-        <Stack spacing={2} padding={2} ref={parentRef} height="full">
+        <Stack spacing={2} padding={2} height="full">
           {hasSelectedChat ? (
-            selectedChat.content.map(({ emitter, message, feedback }, key) => {
+            <AnimatePresence initial={false}>
+            {selectedChat.content.map(({ emitter, message, feedback }, key) => {
               const getAvatar = () => {
                 switch (emitter) {
                   case "gpt":
@@ -410,10 +466,15 @@ export const Chat = ({ ...props }: ChatProps) => {
               };
 
               const messageId = `${selectedId}-${key}`;
-              const isStreaming = streamingMessageId === messageId;
 
               return (
                 <Box
+                  as={motion.div}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.2, ease: [0.2, 0.65, 0.3, 0.9] }}
                   id={messageId}
                   key={key}
                   position="relative"
@@ -504,23 +565,27 @@ export const Chat = ({ ...props }: ChatProps) => {
                   </Stack>
                 </Box>
               );
-            })
+            })}
+            </AnimatePresence>
           ) : (
             <Instructions onClick={(text) => setValue("input", text)} />
           )}
-          {isThinking && <ThinkingIndicator />}
+          {selectedId && thinkingChatIds.has(selectedId) && (
+            <ThinkingIndicator />
+          )}
         </Stack>
       </Stack>
       {showScrollButton && (
         <Box
+          as={motion.div}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 16 }}
           position="fixed"
           bottom="220px"
           left="50%"
           transform={`translate(-50%, ${showScrollButton ? '0' : '100%'})`}
           zIndex={20}
-          opacity={showScrollButton ? 1 : 0}
-          visibility={showScrollButton ? "visible" : "hidden"}
-          transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
         >
           <IconButton
             aria-label="Scroll to bottom"
@@ -533,11 +598,9 @@ export const Chat = ({ ...props }: ChatProps) => {
             rounded="full"
             boxShadow="lg"
             backgroundColor="rgba(33, 37, 41, 0.8)"
-            _hover={{ 
-              backgroundColor: "rgba(33, 37, 41, 0.9)",
-              transform: "scale(1.1)",
-            }}
-            transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+            as={motion.button}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.96 }}
           />
         </Box>
       )}
@@ -565,13 +628,25 @@ export const Chat = ({ ...props }: ChatProps) => {
               />
             }
             inputRightAddon={
-              <IconButton
-                aria-label="send_button"
-                icon={!isLoading ? <FiSend /> : <Spinner />}
-                backgroundColor="transparent"
-                onClick={handleSubmit(handleAsk)}
-                isDisabled={isSendDisabled}
-              />
+              selectedId && (streamingChatIds.has(selectedId) || thinkingChatIds.has(selectedId)) ? (
+                <IconButton
+                  aria-label="stop_generating"
+                  icon={<FiSquare />}
+                  backgroundColor="transparent"
+                  onClick={() => {
+                    const controller = selectedId ? controllersRef.current.get(selectedId) : undefined;
+                    if (controller) controller.abort();
+                  }}
+                />
+              ) : (
+                <IconButton
+                  aria-label="send_button"
+                  icon={!isLoading ? <FiSend /> : <Spinner />}
+                  backgroundColor="transparent"
+                  onClick={handleSubmit(handleAsk)}
+                  isDisabled={isSendDisabled}
+                />
+              )
             }
             {...register("input")}
             onSubmit={handleInputKeyDown}
