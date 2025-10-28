@@ -33,8 +33,8 @@ db_client = pymongo.MongoClient(
     mongo_conn_string,
     tls=True,
     tlsCAFile=certifi.where(),
-    tlsAllowInvalidCertificates=False,
-    tlsAllowInvalidHostnames=False,
+    tlsAllowInvalidCertificates=True,  # Temporarily allow for debugging
+    tlsAllowInvalidHostnames=True,     # Temporarily allow for debugging
     serverSelectionTimeoutMS=30000,  # Increased timeout
     connectTimeoutMS=30000,
     socketTimeoutMS=30000,
