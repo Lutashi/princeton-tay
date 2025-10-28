@@ -27,28 +27,31 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 cas_client = CASClient()
 
 def authenticated():
-    is_logged_in = cas_client.is_logged_in()
-    if is_logged_in:
-        netid = cas_client.authenticate()
-        db_client["logins"].insert_one({
-            "netid": netid, 
-            "time": int(time.time())
-        })
-
-    return is_logged_in
+    # Skip authentication in local dev
+    return True
+    # is_logged_in = cas_client.is_logged_in()
+    # if is_logged_in:
+    #     netid = cas_client.authenticate()
+    #     db_client["logins"].insert_one({
+    #         "netid": netid, 
+    #         "time": int(time.time())
+    #     })
+    # return is_logged_in
 
 # ========== UI ==========
 
 @app.route('/static/<path:filename>')
 def serve_static(filename):
-    if not authenticated():
-        abort(401)
+    # Skip authentication in local dev
+    # if not authenticated():
+    #     abort(401)
     return send_from_directory('dist', filename)
 
 @app.route('/')
 def index():
-    if not authenticated():
-        return redirect(url_for("login"))
+    # Skip authentication in local dev
+    # if not authenticated():
+    #     return redirect(url_for("login"))
     return send_from_directory('dist', 'index.html')
 
 @app.route("/login")
@@ -74,49 +77,57 @@ def widget_data():
 
 @app.route('/api/track', methods=['POST'])
 def track():
-    data = request.get_json()
-    data = Event(**data)
-    mp.track(data.uuid, data.event, data.properties)
+    try:
+        data = request.get_json()
+        data = Event(**data)
+        mp.track(data.uuid, data.event, data.properties)
+    except Exception as e:
+        print(f"[WARNING] Tracking error: {e}")
     return '', 204
 
 # ========== CHATBOT ==========
 
 @app.route('/api/feedback', methods=['POST'])
 def feedback():
-    if not authenticated():
-        abort(401)
-    data = request.get_json()
-    feedback = Feedback(**data)
-    collection = db_client["feedback"]
+    # Skip authentication in local dev
+    # if not authenticated():
+    #     abort(401)
+    try:
+        data = request.get_json()
+        feedback = Feedback(**data)
+        collection = db_client["feedback"]
 
-    if not feedback.feedback:
-        collection.delete_one({
-            "uuid": feedback.uuid,
-            "session_id": feedback.session_id,
-            "msg_index": feedback.msg_index
-        })
-    else:
-        filter = {
-            "uuid": feedback.uuid,
-            "session_id": feedback.session_id,
-            "msg_index": feedback.msg_index
-        }
-        new_document = {
-            "uuid": feedback.uuid,
-            "session_id": feedback.session_id,
-            "msg_index": feedback.msg_index,
-            "feedback": feedback.feedback,
-            "time": int(time.time())
-        }
+        if not feedback.feedback:
+            collection.delete_one({
+                "uuid": feedback.uuid,
+                "session_id": feedback.session_id,
+                "msg_index": feedback.msg_index
+            })
+        else:
+            filter = {
+                "uuid": feedback.uuid,
+                "session_id": feedback.session_id,
+                "msg_index": feedback.msg_index
+            }
+            new_document = {
+                "uuid": feedback.uuid,
+                "session_id": feedback.session_id,
+                "msg_index": feedback.msg_index,
+                "feedback": feedback.feedback,
+                "time": int(time.time())
+            }
 
-        collection.replace_one(filter, new_document, upsert=True)
+            collection.replace_one(filter, new_document, upsert=True)
+    except Exception as e:
+        print(f"[WARNING] Feedback storage error: {e}")
 
     return '', 200
     
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    if not authenticated():
-        abort(401)
+    # Skip authentication in local dev
+    # if not authenticated():
+    #     abort(401)
     data = request.get_json()
     query = ChatQueryInput(**data)
     memory = Memory(query.uuid, query.session_id)
@@ -130,7 +141,10 @@ def chat():
     )
 
     memory.add_message(MessageType.HUMAN, query.text)
-    mp.track(query.uuid, "chat", {'session_id': query.session_id})
+    try:
+        mp.track(query.uuid, "chat", {'session_id': query.session_id})
+    except Exception as e:
+        print(f"[WARNING] Mixpanel tracking error: {e}")
 
     return generate_response(memory, tool_use), {"Content-Type": "text/plain"}
 

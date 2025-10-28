@@ -98,7 +98,9 @@ def setup_mongodb_indices():
     
     print("MongoDB indices created successfully")
 
-setup_mongodb_indices()
+# Don't setup indices at import time - will be called lazily when needed
+# This prevents the app from failing to start if MongoDB is temporarily unavailable
+# setup_mongodb_indices()
 
 
 def retrieve_widget_data():

@@ -1,5 +1,5 @@
 const config = {
-    URL: "https://tay.tigerapps.org",
+    URL: "http://localhost:6001",  // Using local dev server
     DEV: "http://localhost:6001",
     PROD: "https://tay.tigerapps.org",
   };

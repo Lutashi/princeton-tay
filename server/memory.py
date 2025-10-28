@@ -14,18 +14,22 @@ class Memory:
         return f"{message['type']}: {message['content']}"
 
     def get_messages(self):
-        conversation: Conversation = self.conversations.find_one({
-            "uuid": self.uuid,
-            "session_id": self.session_id
-        },
-        {
-            "messages": {"$slice": -self.last_n}
-        })
-        if conversation:
-            messages: List[Message] = conversation.get("messages", [])
-            texts = [self._message_to_str(message) for message in messages]
-            return texts
-        return []
+        try:
+            conversation: Conversation = self.conversations.find_one({
+                "uuid": self.uuid,
+                "session_id": self.session_id
+            },
+            {
+                "messages": {"$slice": -self.last_n}
+            })
+            if conversation:
+                messages: List[Message] = conversation.get("messages", [])
+                texts = [self._message_to_str(message) for message in messages]
+                return texts
+            return []
+        except Exception as e:
+            print(f"[WARNING] MongoDB error in get_messages: {e}")
+            return []
 
     def add_message(self, type: MessageType, content: str, tool_use: Optional[ToolInvocation] = None):
         timestamp = int(time.time())
@@ -37,11 +41,14 @@ class Memory:
             "time": timestamp
         }
         
-        self.conversations.update_one(
-            {"uuid": self.uuid, "session_id": self.session_id},
-            {
-                "$push": {"messages": message}, 
-                "$set": {"time": timestamp}
-            },
-            upsert=True
-        )
+        try:
+            self.conversations.update_one(
+                {"uuid": self.uuid, "session_id": self.session_id},
+                {
+                    "$push": {"messages": message}, 
+                    "$set": {"time": timestamp}
+                },
+                upsert=True
+            )
+        except Exception as e:
+            print(f"[WARNING] MongoDB error in add_message: {e}")
