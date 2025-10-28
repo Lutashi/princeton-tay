@@ -41,7 +41,7 @@ export interface SideBarProps {
 };
 
 export const Sidebar = ({ isResponsive, ...props }: SideBarProps) => {
-    const [isOpen, setIsOpen] = useState(true),
+    const [isOpen, setIsOpen] = useState(false),
         handleOpen = () => setIsOpen(true),
         handleClose = () => setIsOpen(false);
 
@@ -105,7 +105,7 @@ export const Sidebar = ({ isResponsive, ...props }: SideBarProps) => {
                     />
                 </Stack>
             )}
-            {!!(isOpen) && (
+            {!!(isResponsive && isOpen) && (
                 <Stack
                     as={motion.div}
                     width="full"
@@ -121,15 +121,18 @@ export const Sidebar = ({ isResponsive, ...props }: SideBarProps) => {
                     animate={{
                         opacity: 1
                     }}
+                    onClick={handleClose}
                 />
             )}
             <Stack
-                maxWidth={64}
-                width="full"
+                width={72}
+                minWidth={72}
                 height="full"
                 padding={2}
                 color="white"
-                backgroundColor="gray.900"
+                backgroundColor="#202123"
+                borderRightWidth={1}
+                borderColor="whiteAlpha.200"
                 zIndex={1}
                 transition="all ease .5s"
                 {...responsiveProps}
@@ -150,22 +153,19 @@ export const Sidebar = ({ isResponsive, ...props }: SideBarProps) => {
                 <Button
                     leftIcon={<FiPlus size={16} />}
                     borderWidth={1}
-                    borderColor="whiteAlpha.400"
+                    borderColor="whiteAlpha.200"
                     rounded={4}
-                    padding={2}
+                    paddingY={2}
+                    paddingX={3}
                     justifyContent="flex-start"
-                    transition="all ease .5s"
-                    backgroundColor="transparent"
+                    transition="all ease .2s"
+                    backgroundColor="#202123"
                     onClick={() => addChat()}
                     _hover={{
                         backgroundColor: "whiteAlpha.100"
                     }}
                 >New chat</Button>
-                <Stack
-                    height="full"
-                    overflowY="auto"
-                    ref={listRef}
-                >
+                <Stack height="full" overflowY="auto" ref={listRef} spacing={1}>
                     {chat?.map(({ id, role }) => {
                         return (
                             <Button
@@ -174,7 +174,8 @@ export const Sidebar = ({ isResponsive, ...props }: SideBarProps) => {
                                 cursor="pointer"
                                 leftIcon={<FiMessageSquare />}
                                 justifyContent="flex-start"
-                                padding={2}
+                                paddingY={2}
+                                paddingX={3}
                                 overflow="hidden"
                                 textOverflow="ellipsis"
                                 backgroundColor={
@@ -185,7 +186,7 @@ export const Sidebar = ({ isResponsive, ...props }: SideBarProps) => {
                                     backgroundColor: "whiteAlpha.100"
                                 }}
                             >
-                                <Text>{role}</Text>
+                                <Text noOfLines={1}>{role}</Text>
                                 <Spacer />
                                 <FiTrash2
                                     className="icon"
@@ -198,28 +199,27 @@ export const Sidebar = ({ isResponsive, ...props }: SideBarProps) => {
                         );
                     })}
                 </Stack>
-                <Divider
-                    marginY={2}
-                    borderColor="white"
-                />
+                <Divider marginY={2} borderColor="whiteAlpha.200" />
                 <Stack>
                     <Button
                         leftIcon={<FiTrash2 />}
                         justifyContent="flex-start"
-                        padding={2}
+                        paddingY={2}
+                        paddingX={3}
                         onClick={clearAll}
                         backgroundColor="transparent"
                         _hover={{
-                            backgroundColor: "blackAlpha.300"
+                            backgroundColor: "whiteAlpha.100"
                         }}
                     >Clear conversations</Button>
                     <Button
-                        padding={2}
+                        paddingY={2}
+                        paddingX={3}
                         justifyContent="space-between"
                         backgroundColor="transparent"
                         onClick={handleOpenAccountModal}
                         _hover={{
-                            backgroundColor: "blackAlpha.300"
+                            backgroundColor: "whiteAlpha.100"
                         }}
                     >
                         <Text
@@ -236,40 +236,44 @@ export const Sidebar = ({ isResponsive, ...props }: SideBarProps) => {
                     </Button>
                     <Button
                         justifyContent="flex-start"
-                        padding={2}
+                        paddingY={2}
+                        paddingX={3}
                         onClick={toggleColorMode}
                         backgroundColor="transparent"
                         leftIcon={(colorMode == 'dark') ? <FiSun /> : <FiMoon />}
                         _hover={{
-                            backgroundColor: "blackAlpha.300"
+                            backgroundColor: "whiteAlpha.100"
                         }}
                     >{(colorMode == 'dark') ? ('Light mode') : ('Dark mode')}</Button>
                     <Button
                         leftIcon={<FiExternalLink />}
                         justifyContent="flex-start"
-                        padding={2}
+                        paddingY={2}
+                        paddingX={3}
                         backgroundColor="transparent"
                         _hover={{
-                            backgroundColor: "blackAlpha.300"
+                            backgroundColor: "whiteAlpha.100"
                         }}
                     >Updates & FAQ</Button>
                     <Button
                         leftIcon={<FiLogOut />}
                         justifyContent="flex-start"
-                        padding={2}
+                        paddingY={2}
+                        paddingX={3}
                         backgroundColor="transparent"
                         _hover={{
-                            backgroundColor: "blackAlpha.300"
+                            backgroundColor: "whiteAlpha.100"
                         }}
                     >Log Out</Button>
                     <Button
                         leftIcon={<FiKey />}
-                        padding={2}
+                        paddingY={2}
+                        paddingX={3}
                         justifyContent="flex-start"
                         backgroundColor="transparent"
                         onClick={handleOpenAPIKeyModal}
                         _hover={{
-                            backgroundColor: "blackAlpha.300"
+                            backgroundColor: "whiteAlpha.100"
                         }}
                     >Change API Key</Button>
                 </Stack>
