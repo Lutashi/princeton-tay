@@ -1,4 +1,5 @@
 import { Stack, Heading, Icon, Button, Text } from "@chakra-ui/react";
+import { motion } from "framer-motion";
 import { IconType } from "react-icons";
 import { FiAlertTriangle, FiSun, FiZap } from "react-icons/fi";
 import TayLogo from "assets/taylogo.png";
@@ -45,6 +46,10 @@ export const Instructions = ({ onClick }: IInstructionsProps) => {
 
   return (
     <Stack
+      as={motion.div}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
       justifyContent="center"
       alignItems="center"
       height="full"
@@ -52,8 +57,11 @@ export const Instructions = ({ onClick }: IInstructionsProps) => {
     >
       <Stack className="instruction-stack" direction={["row", "row", "row"]} spacing={16} align="center">
         <Heading
+          as={motion.h2}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
           size="lg"
-          // marginY={8}
           textAlign={"center"}
         >
           <img src={TayLogo} width={100} style={{ marginBottom: 8 }} />
@@ -68,13 +76,16 @@ export const Instructions = ({ onClick }: IInstructionsProps) => {
           };
 
           return (
-            <Stack className="sample-queries-stack" key={key} alignItems="center">
+            <Stack className="sample-queries-stack" key={key} alignItems="center" as={motion.div} layout>
               <Heading size="sm">
                 {" "}
                 <Icon as={icon} marginRight={"2px"} marginBottom={"-2px"} /> {name}
               </Heading>
               {list.map((text, key) => (
                 <Button
+                  as={motion.button}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   key={key}
                   maxWidth={64}
                   height="fit-content"

@@ -151,6 +151,7 @@ export const Sidebar = ({ isResponsive, ...props }: SideBarProps) => {
                     />
                 )}
                 <Button
+                    as={motion.button}
                     leftIcon={<FiPlus size={16} />}
                     borderWidth={1}
                     borderColor="whiteAlpha.200"
@@ -161,14 +162,18 @@ export const Sidebar = ({ isResponsive, ...props }: SideBarProps) => {
                     transition="all ease .2s"
                     backgroundColor="#202123"
                     onClick={() => addChat()}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     _hover={{
                         backgroundColor: "whiteAlpha.100"
                     }}
                 >New chat</Button>
-                <Stack height="full" overflowY="auto" ref={listRef} spacing={1}>
+                <Stack as={motion.div} layout height="full" overflowY="auto" ref={listRef} spacing={1}>
                     {chat?.map(({ id, role }) => {
                         return (
                             <Button
+                                as={motion.button}
                                 id={id}
                                 key={id}
                                 cursor="pointer"
@@ -182,6 +187,9 @@ export const Sidebar = ({ isResponsive, ...props }: SideBarProps) => {
                                     (selectedChat?.id == id) ? ("#ffffff20") : ("transparent")
                                 }
                                 onClick={() => setSelectedChat({ id })}
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                                 _hover={{
                                     backgroundColor: "whiteAlpha.100"
                                 }}
